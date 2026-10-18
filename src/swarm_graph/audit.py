@@ -105,12 +105,12 @@ def audit_trail(sg: SwarmGraph, node_id: str, depth: int = 5) -> dict:
         MATCH (n)
         WHERE n.id = $node_id AND (n:Task OR n:Artifact)
         OPTIONAL MATCH chain = (act:Action)-[:TARGETS]->(n)
-        OPTIONAL MATCH (act)-[cb:CAUSED_BY*1..{depth}]->(prev:Action)
+        OPTIONAL MATCH cchain = (act)-[:CAUSED_BY*1..{depth}]->(prev:Action)
         OPTIONAL MATCH (act)-[:VIOLATES]->(r:Rule)
         OPTIONAL MATCH (ag:Agent)-[:DID]->(act)
         RETURN act.id AS action, act.type AS type, act.detail AS detail,
                ag.id AS agent,
-               [x IN nodes(chain) | x.id] AS caused_by_chain,
+               [x IN nodes(cchain)[1..] | x.id] AS caused_by_chain,
                collect(DISTINCT r.id) AS violations
         """,
         {"node_id": node_id},

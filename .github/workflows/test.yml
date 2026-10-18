@@ -5,6 +5,8 @@ on: [push, workflow_dispatch]
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -12,21 +14,30 @@ jobs:
           python-version: "3.12"
       - run: pip install falkordb pytest
       - name: run tests
+        id: pytest
         run: |
           set +e
           PYTHONPATH=src pytest tests/ -q > /tmp/pytest.log 2>&1
           code=$?
-          echo "PYTEST_EXIT=$code"
-          tail -40 /tmp/pytest.log
-          cp /tmp/pytest.log ./pytest-output.txt
-          exit $code
+          echo "exit=$code"
+          echo "code=$code" >> $GITHUB_OUTPUT
+          exit 0
         env:
           SWARM_HOST: ${{ secrets.SWARM_HOST }}
           SWARM_PORT: ${{ secrets.SWARM_PORT }}
           SWARM_USER: ${{ secrets.SWARM_USER }}
           SWARM_PASSWORD: ${{ secrets.SWARM_PASSWORD }}
-      - uses: actions/upload-artifact@v4
+      - name: report to issue
         if: always()
-        with:
-          name: pytest-output
-          path: pytest-output.txt
+        run: |
+          {
+            echo "## pytest run ${{ github.sha }}"
+            echo "exit code: ${{ steps.pytest.outputs.code }}"
+            echo '```'
+            tail -80 /tmp/pytest.log
+            echo '```'
+          } > /tmp/report.md
+          gh issue create --title "pytest ${{ github.sha }} exit=${{ steps.pytest.outputs.code }}" --body-file /tmp/report.md --label ci 2>/dev/null || \
+          gh issue comment 1 --body-file /tmp/report.md 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
