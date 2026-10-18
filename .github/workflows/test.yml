@@ -5,8 +5,6 @@ on: [push, workflow_dispatch]
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -14,30 +12,28 @@ jobs:
           python-version: "3.12"
       - run: pip install falkordb pytest
       - name: run tests
-        id: pytest
         run: |
           set +e
           PYTHONPATH=src pytest tests/ -q > /tmp/pytest.log 2>&1
           code=$?
-          echo "exit=$code"
-          echo "code=$code" >> $GITHUB_OUTPUT
-          exit 0
+          echo "PYTEST_EXIT=$code"
+          tail -15 /tmp/pytest.log
+          exit $code
         env:
           SWARM_HOST: ${{ secrets.SWARM_HOST }}
           SWARM_PORT: ${{ secrets.SWARM_PORT }}
           SWARM_USER: ${{ secrets.SWARM_USER }}
           SWARM_PASSWORD: ${{ secrets.SWARM_PASSWORD }}
-      - name: report to issue
-        if: always()
+      - name: run demo
         run: |
-          {
-            echo "## pytest run ${{ github.sha }}"
-            echo "exit code: ${{ steps.pytest.outputs.code }}"
-            echo '```'
-            tail -80 /tmp/pytest.log
-            echo '```'
-          } > /tmp/report.md
-          gh issue create --title "pytest ${{ github.sha }} exit=${{ steps.pytest.outputs.code }}" --body-file /tmp/report.md --label ci 2>/dev/null || \
-          gh issue comment 1 --body-file /tmp/report.md 2>/dev/null || true
+          set +e
+          timeout 120 python3 demo/demo_scenario.py > /tmp/demo.log 2>&1
+          code=$?
+          echo "DEMO_EXIT=$code"
+          tail -30 /tmp/demo.log
+          exit $code
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SWARM_HOST: ${{ secrets.SWARM_HOST }}
+          SWARM_PORT: ${{ secrets.SWARM_PORT }}
+          SWARM_USER: ${{ secrets.SWARM_USER }}
+          SWARM_PASSWORD: ${{ secrets.SWARM_PASSWORD }}
