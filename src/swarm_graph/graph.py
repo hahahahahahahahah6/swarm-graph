@@ -58,6 +58,7 @@ def connect(
     port: int | None = None,
     username: str | None = None,
     password: str | None = None,
+    graph: str | None = None,
 ) -> SwarmGraph:
     """Connect using env overrides (SWARM_HOST / SWARM_PORT / SWARM_USER / SWARM_PASSWORD) when present."""
     return SwarmGraph(
@@ -65,4 +66,5 @@ def connect(
         port=port or int(os.environ.get("SWARM_PORT", "6379")),
         username=username or os.environ.get("SWARM_USER"),
         password=password or os.environ.get("SWARM_PASSWORD"),
+        graph=graph or GRAPH_NAME,
     )

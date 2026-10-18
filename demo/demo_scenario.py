@@ -22,6 +22,7 @@ from swarm_graph import (  # noqa: E402
     audit_trail,
     claim_task,
     complete_task,
+    connect,
     create_task,
     define_rule,
     detect_conflicts,
@@ -38,7 +39,7 @@ def banner(text: str) -> None:
 
 
 def main() -> None:
-    sg = SwarmGraph(graph="swarm_demo")
+    sg = connect(graph="swarm_demo")
     sg.wipe()
 
     banner("SETUP: 3 agents, 1 shared graph, 5 tasks")
