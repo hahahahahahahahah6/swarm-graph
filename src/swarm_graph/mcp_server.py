@@ -8,7 +8,10 @@ Configure in Claude Code (.mcp.json):
       "mcpServers": {
         "swarm-graph": {
           "command": "swarm-graph-mcp",
-          "env": { "SWARM_HOST": "localhost", "SWARM_PORT": "6379" }
+          "env": {
+            "SWARM_HOST": "localhost", "SWARM_PORT": "6379"
+            // FalkorDB Cloud: set SWARM_HOST / SWARM_PORT / SWARM_USER / SWARM_PASSWORD
+          }
         }
       }
     }
@@ -53,7 +56,10 @@ def claim_task(task_id: str, agent_id: str) -> dict:
     """Atomically claim a pending task. Fails (claimed: false) if taken."""
     got = _tasks.claim_task(sg(), task_id, agent_id)
     if got is None:
-        return {"claimed": False, "task_id": task_id, "agent_id": agent_id}
+        reason = _tasks.claim_failure_reason(sg(), task_id)
+        if reason == "claimable":
+            reason = "agent not registered"
+        return {"claimed": False, "task_id": task_id, "agent_id": agent_id, "reason": reason}
     return {"claimed": True, **got}
 
 

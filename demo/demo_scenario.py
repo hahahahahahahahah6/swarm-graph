@@ -101,7 +101,7 @@ def main() -> None:
     print(f"  cycles: {plan['cycles'] or 'none'}")
 
     banner("ACT 4: the work happens — in dependency order")
-    claim_task(sg, "design", "designer")
+    # designer already holds "design" from the ACT 2 handoff
     start_task(sg, "design", "designer")
     log_action(sg, "designer", "write_file", "mockup v1", targets=["design"])
     complete_task(sg, "design", "designer", artifacts=["mockup.fig"])

@@ -39,8 +39,13 @@ A property graph gives you both: one Cypher query atomically claims a task, and 
 ## Quick start
 
 ```bash
-# 1. FalkorDB
+# 1. FalkorDB — local Docker, or FalkorDB Cloud (free tier)
 docker compose up -d        # or: docker run -p 6379:6379 -p 3000:3000 falkordb/falkordb
+
+# FalkorDB Cloud: export SWARM_HOST / SWARM_PORT / SWARM_USER / SWARM_PASSWORD
+# (find host+port in the instance's Connectivity tab)
+export SWARM_HOST=your-instance.cloud SWARM_PORT=12345
+export SWARM_USER=falkordb SWARM_PASSWORD=your-password
 
 # 2. Install
 pip install -e .
@@ -57,7 +62,7 @@ pytest tests/ -q
 ```python
 from swarm_graph import connect, register_agent, create_task, claim_task, plan_tasks, detect_conflicts
 
-sg = connect()  # SWARM_HOST / SWARM_PORT env overrides
+sg = connect()  # SWARM_HOST / SWARM_PORT / SWARM_USER / SWARM_PASSWORD env overrides
 
 register_agent(sg, "coder", "Cleo", "frontend")
 create_task(sg, "build", "Build page", priority=3, depends_on=["design"])

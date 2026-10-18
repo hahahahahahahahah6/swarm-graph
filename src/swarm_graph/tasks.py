@@ -151,6 +151,18 @@ def start_task(sg: SwarmGraph, task_id: str, agent_id: str) -> bool:
     return bool(res.result_set)
 
 
+def claim_failure_reason(sg: SwarmGraph, task_id: str) -> str:
+    """Human-readable reason why a task cannot be claimed right now."""
+    info = task_info(sg, task_id)
+    if info is None:
+        return "task not found"
+    if info["status"] != "pending":
+        return f"task is {info['status']}"
+    if info["claimers"]:
+        return f"already claimed by {info['claimers']}"
+    return "claimable"
+
+
 def task_info(sg: SwarmGraph, task_id: str) -> dict | None:
     res = sg.query(
         """

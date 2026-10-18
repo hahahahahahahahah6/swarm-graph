@@ -6,6 +6,7 @@ from swarm_graph import (
     claim_task,
     complete_task,
     create_task,
+    fail_task,
     register_agent,
     release_task,
     start_task,
@@ -98,3 +99,26 @@ def test_concurrent_claim_single_winner(sg):
 
     assert len(winners) == 1, f"expected exactly 1 winner, got {winners}"
     assert task_info(sg, "hot")["claimers"] == winners
+
+
+def test_claim_failure_reason(sg):
+    from swarm_graph import claim_failure_reason
+
+    assert claim_failure_reason(sg, "nope") == "task not found"
+    _seed(sg)
+    assert claim_failure_reason(sg, "t1") == "claimable"
+    claim_task(sg, "t1", "a1")
+    assert claim_failure_reason(sg, "t1") == "already claimed by ['a1']"
+    complete_task(sg, "t1", "a1")
+    assert claim_failure_reason(sg, "t1") == "task is done"
+
+
+def test_fail_returns_to_pool(sg):
+    _seed(sg)
+    claim_task(sg, "t1", "a1")
+    assert fail_task(sg, "t1", "a1") is True
+    info = task_info(sg, "t1")
+    assert info["status"] == "pending"
+    assert info["claimers"] == []
+    # another agent can pick it up
+    assert claim_task(sg, "t1", "a2") is not None
