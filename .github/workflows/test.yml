@@ -11,28 +11,22 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install falkordb pytest
-      - name: connectivity check
+      - name: run tests
         run: |
-          PYTHONPATH=src python3 -c "
-          from swarm_graph import SwarmGraph
-          import os
-          sg = SwarmGraph(
-              host=os.environ['SWARM_HOST'],
-              port=int(os.environ['SWARM_PORT']),
-              username=os.environ.get('SWARM_USER'),
-              password=os.environ.get('SWARM_PASSWORD'),
-              graph='swarm_test',
-          )
-          print('connected OK')
-          "
+          set +e
+          PYTHONPATH=src pytest tests/ -q > /tmp/pytest.log 2>&1
+          code=$?
+          echo "PYTEST_EXIT=$code"
+          tail -40 /tmp/pytest.log
+          cp /tmp/pytest.log ./pytest-output.txt
+          exit $code
         env:
           SWARM_HOST: ${{ secrets.SWARM_HOST }}
           SWARM_PORT: ${{ secrets.SWARM_PORT }}
           SWARM_USER: ${{ secrets.SWARM_USER }}
           SWARM_PASSWORD: ${{ secrets.SWARM_PASSWORD }}
-      - run: PYTHONPATH=src pytest tests/ -v
-        env:
-          SWARM_HOST: ${{ secrets.SWARM_HOST }}
-          SWARM_PORT: ${{ secrets.SWARM_PORT }}
-          SWARM_USER: ${{ secrets.SWARM_USER }}
-          SWARM_PASSWORD: ${{ secrets.SWARM_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-output
+          path: pytest-output.txt
