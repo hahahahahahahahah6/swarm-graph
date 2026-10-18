@@ -11,7 +11,26 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install falkordb pytest
-      - run: PYTHONPATH=src pytest tests/ -q
+      - name: connectivity check
+        run: |
+          PYTHONPATH=src python3 -c "
+          from swarm_graph import SwarmGraph
+          import os
+          sg = SwarmGraph(
+              host=os.environ['SWARM_HOST'],
+              port=int(os.environ['SWARM_PORT']),
+              username=os.environ.get('SWARM_USER'),
+              password=os.environ.get('SWARM_PASSWORD'),
+              graph='swarm_test',
+          )
+          print('connected OK')
+          "
+        env:
+          SWARM_HOST: ${{ secrets.SWARM_HOST }}
+          SWARM_PORT: ${{ secrets.SWARM_PORT }}
+          SWARM_USER: ${{ secrets.SWARM_USER }}
+          SWARM_PASSWORD: ${{ secrets.SWARM_PASSWORD }}
+      - run: PYTHONPATH=src pytest tests/ -v
         env:
           SWARM_HOST: ${{ secrets.SWARM_HOST }}
           SWARM_PORT: ${{ secrets.SWARM_PORT }}
