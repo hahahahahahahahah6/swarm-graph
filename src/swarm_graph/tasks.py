@@ -156,10 +156,10 @@ def claim_failure_reason(sg: SwarmGraph, task_id: str) -> str:
     info = task_info(sg, task_id)
     if info is None:
         return "task not found"
-    if info["status"] != "pending":
-        return f"task is {info['status']}"
     if info["claimers"]:
         return f"already claimed by {info['claimers']}"
+    if info["status"] != "pending":
+        return f"task is {info['status']}"
     return "claimable"
 
 
