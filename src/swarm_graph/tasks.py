@@ -84,6 +84,7 @@ def release_task(sg: SwarmGraph, task_id: str, agent_id: str) -> bool:
         WHERE t.status IN ['claimed', 'in_progress']
         DELETE c
         SET t.status = 'pending'
+        REMOVE t.started_at
         RETURN t.id AS task_id
         """,
         {"task_id": task_id, "agent_id": agent_id},
@@ -96,9 +97,11 @@ def _set_status(
 ) -> bool:
     res = sg.query(
         """
-        MATCH (a:Agent {id: $agent_id})-[:CLAIMS]->(t:Task {id: $task_id})
+        MATCH (a:Agent {id: $agent_id})-[c:CLAIMS]->(t:Task {id: $task_id})
         WHERE t.status IN ['claimed', 'in_progress']
+        DELETE c
         SET t.status = $status, t.finished_at = $now
+        REMOVE t.started_at
         RETURN t.id AS task_id
         """,
         {"task_id": task_id, "agent_id": agent_id, "status": status, "now": sg.now_ms()},
@@ -126,7 +129,12 @@ def complete_task(
 
 
 def fail_task(sg: SwarmGraph, task_id: str, agent_id: str) -> bool:
-    return _set_status(sg, task_id, agent_id, "failed")
+    """Mark a task failed and return it to the pool for retry.
+
+    The failure itself should be recorded with log_action(); the task
+    goes back to 'pending' so another agent can pick it up.
+    """
+    return _set_status(sg, task_id, agent_id, "pending")
 
 
 def start_task(sg: SwarmGraph, task_id: str, agent_id: str) -> bool:

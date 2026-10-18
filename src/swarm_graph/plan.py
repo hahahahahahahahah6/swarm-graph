@@ -31,6 +31,19 @@ def _fetch_edges(sg: SwarmGraph) -> tuple[dict[str, dict], dict[str, set[str]]]:
     return info, edges
 
 
+def _find_all_cycles(nodes: set[str], edges: dict[str, set[str]]) -> list[list[str]]:
+    """Return all disjoint dependency cycles via repeated DFS."""
+    cycles = []
+    remaining = set(nodes)
+    while remaining:
+        cyc = _find_cycle(remaining, edges)
+        if not cyc:
+            break
+        cycles.append(cyc)
+        remaining -= set(cyc)
+    return cycles
+
+
 def _find_cycle(nodes: set[str], edges: dict[str, set[str]]) -> list[str]:
     """Return one dependency cycle (list of task ids) via DFS, or []."""
     WHITE, GRAY, BLACK = 0, 1, 2
@@ -99,11 +112,7 @@ def plan_tasks(sg: SwarmGraph) -> dict:
         available.sort(key=lambda t: (-info[t]["priority"], t))
 
     blocked = sorted(active - set(order))
-    cycles = []
-    if blocked:
-        cyc = _find_cycle(set(blocked), edges)
-        if cyc:
-            cycles.append(cyc)
+    cycles = _find_all_cycles(set(blocked), edges)
 
     ready = [
         tid

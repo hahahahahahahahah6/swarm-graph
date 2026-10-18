@@ -116,19 +116,26 @@ def audit_trail(sg: SwarmGraph, node_id: str, depth: int = 5) -> dict:
         {"node_id": node_id},
     )
     trail = []
+    seen: dict[str, dict] = {}
     for row in res.result_set:
         if row[0] is None:
             continue
-        trail.append(
-            {
-                "action": row[0],
-                "type": row[1],
-                "detail": row[2],
-                "agent": row[3],
-                "caused_by_chain": [x for x in (row[4] or []) if x],
-                "violations": [v for v in row[5] if v],
-            }
-        )
+        chain = [x for x in (row[4] or []) if x]
+        if row[0] in seen:
+            # Same action via another CAUSED_BY path: keep the longest chain.
+            if len(chain) > len(seen[row[0]]["caused_by_chain"]):
+                seen[row[0]]["caused_by_chain"] = chain
+            continue
+        entry = {
+            "action": row[0],
+            "type": row[1],
+            "detail": row[2],
+            "agent": row[3],
+            "caused_by_chain": chain,
+            "violations": [v for v in row[5] if v],
+        }
+        seen[row[0]] = entry
+        trail.append(entry)
     return {"node": node_id, "trail": trail}
 
 

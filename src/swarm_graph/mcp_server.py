@@ -119,6 +119,7 @@ def define_rule(rule_id: str, name: str, description: str) -> dict:
 @mcp.tool()
 def audit_trail(node_id: str, depth: int = 5) -> dict:
     """Causal chain of actions that touched a task or artifact."""
+    depth = max(1, min(int(depth), 10))
     return _audit.audit_trail(sg(), node_id, depth)
 
 

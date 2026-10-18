@@ -13,7 +13,7 @@ and shared docs handle badly:
 from __future__ import annotations
 
 from .graph import SwarmGraph
-from .plan import _fetch_edges, _find_cycle
+from .plan import _fetch_edges, _find_all_cycles
 
 
 def detect_conflicts(sg: SwarmGraph) -> dict:
@@ -41,8 +41,7 @@ def detect_conflicts(sg: SwarmGraph) -> dict:
     # 2. cycles in DEPENDS_ON (ignore done tasks)
     info, edges = _fetch_edges(sg)
     active = {tid for tid, m in info.items() if m["status"] != "done"}
-    cyc = _find_cycle(active, edges)
-    if cyc:
+    for cyc in _find_all_cycles(active, edges):
         conflicts["dependency_cycle"].append({"cycle": cyc})
 
     # 3. two unfinished tasks -> same artifact
