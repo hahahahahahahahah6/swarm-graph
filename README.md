@@ -1,1 +1,119 @@
 # swarm-graph
+
+**Multi-agent shared state graph: agents coordinate through one FalkorDB graph instead of a central scheduler.**
+
+Tasks, dependencies, and artifacts are graph nodes. Agents atomically claim tasks with Cypher, get execution order from topological sort, and the graph itself detects when two agents are working against each other. Every action is also logged as a causal audit trail — so when something goes wrong, you can walk the graph backwards to find out why.
+
+Built for [Graph Hacks](https://wemakedevs.org) (WeMakeDevs × FalkorDB), targeting **Track 2: Agent Memory and Coordination**, with the audit-trail half also entered in **Track 1: Agents That Act on Connected Data**.
+
+## Why a graph for coordination?
+
+Message queues and shared docs are bad at two things agents constantly need:
+
+1. **"Who took this task?"** — needs an atomic check-and-set, or two agents do duplicate work.
+2. **"Are we stepping on each other?"** — needs a global view of claims, dependencies, and outputs.
+
+A property graph gives you both: one Cypher query atomically claims a task, and conflict detection is just pattern matching over the same graph.
+
+### How this differs from Trace
+
+[Trace](https://dev.to/swarnnim/why-i-put-my-agents-memory-in-a-graph-1l6b) (also Graph Hacks, also FalkorDB) is a *memory* layer: episodic/semantic/blackboard graphs that help one research agent remember. swarm-graph is an *orchestration* layer: atomic task claiming, dependency planning, and conflict detection for many agents executing together. Different problem, different schema — plus Trace has no equivalent of our causal audit trail (below).
+
+## Schema
+
+```
+(:Agent {id, name, role})
+(:Task {id, title, status, priority})        status: pending → claimed → in_progress → done/failed
+(:Artifact {id, path})
+(:Action {id, type, detail, at})             audit trail
+(:Rule {id, name, description})               guard rules
+
+(:Agent)-[:CLAIMS {at}]->(:Task)
+(:Task)-[:DEPENDS_ON]->(:Task)
+(:Task)-[:PRODUCES]->(:Artifact)
+(:Agent)-[:DID]->(:Action)-[:TARGETS]->(:Task | :Artifact)
+(:Action)-[:CAUSED_BY]->(:Action)            causal chain
+(:Action)-[:VIOLATES]->(:Rule)               guard-rule hits
+```
+
+## Quick start
+
+```bash
+# 1. FalkorDB
+docker compose up -d        # or: docker run -p 6379:6379 -p 3000:3000 falkordb/falkordb
+
+# 2. Install
+pip install -e .
+
+# 3. Demo (3 agents build a landing page; watch conflicts get caught)
+python demo/demo_scenario.py
+
+# 4. Tests
+pytest tests/ -q
+```
+
+## Core API
+
+```python
+from swarm_graph import connect, register_agent, create_task, claim_task, plan_tasks, detect_conflicts
+
+sg = connect()  # SWARM_HOST / SWARM_PORT env overrides
+
+register_agent(sg, "coder", "Cleo", "frontend")
+create_task(sg, "build", "Build page", priority=3, depends_on=["design"])
+
+# Atomic claim: two agents racing → exactly one wins, loser gets None
+won = claim_task(sg, "build", "coder")
+
+# Topological execution order + cycle detection
+plan = plan_tasks(sg)
+print(plan["order"])   # dependencies first
+print(plan["ready"])   # claimable right now
+print(plan["cycles"])  # dependency deadlocks
+
+# Conflict scan: double-claims, cycles, artifact collisions, blocked claims
+print(detect_conflicts(sg))
+```
+
+## Audit trail (Track 1)
+
+Every agent action is a node with causal edges — the graph *remembers* misbehavior instead of only blocking it:
+
+```python
+from swarm_graph import log_action, define_rule, audit_trail, violations
+
+define_rule(sg, "no-test-tamper", "No test tampering",
+            "Agents must not weaken test assertions to pass.")
+
+a1 = log_action(sg, "coder", "run_tests", "3 failures", targets=["test"])
+log_action(sg, "coder", "edit_file", "changed toBe(10) to toBe(9)",
+           targets=["test"], caused_by=a1, violates="no-test-tamper")
+
+audit_trail(sg, "test")   # walk the causal chain backwards
+violations(sg)            # all guard-rule hits
+```
+
+## MCP server
+
+Multiple Claude Code agents share one graph through MCP tools:
+
+```json
+// .mcp.json
+{ "mcpServers": { "swarm-graph": { "command": "swarm-graph-mcp" } } }
+```
+
+Tools: `register_agent`, `create_task`, `claim_task`, `start_task`, `complete_task`, `release_task`, `fail_task`, `get_plan`, `detect_conflicts`, `task_info`, `log_action`, `define_rule`, `audit_trail`, `violations`.
+
+## Project layout
+
+```
+src/swarm_graph/   tasks.py (atomic claim) · plan.py (topo sort) ·
+                   conflicts.py (4 detectors) · audit.py (causal trail) ·
+                   mcp_server.py · graph.py
+tests/             20 tests, incl. 12-agent concurrent claim race
+demo/              demo_scenario.py — 60-second narrative
+```
+
+## License
+
+MIT

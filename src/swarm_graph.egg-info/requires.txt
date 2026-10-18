@@ -1,0 +1,5 @@
+falkordb>=1.0
+mcp<2,>=1.0
+
+[dev]
+pytest>=8

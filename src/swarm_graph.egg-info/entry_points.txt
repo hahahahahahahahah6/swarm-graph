@@ -1,0 +1,2 @@
+[console_scripts]
+swarm-graph-mcp = swarm_graph.mcp_server:main

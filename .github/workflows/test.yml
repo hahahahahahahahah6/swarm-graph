@@ -1,0 +1,19 @@
+name: tests
+
+on: [push, workflow_dispatch]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install falkordb pytest
+      - run: PYTHONPATH=src pytest tests/ -q
+        env:
+          SWARM_HOST: ${{ secrets.SWARM_HOST }}
+          SWARM_PORT: ${{ secrets.SWARM_PORT }}
+          SWARM_USER: ${{ secrets.SWARM_USER }}
+          SWARM_PASSWORD: ${{ secrets.SWARM_PASSWORD }}
